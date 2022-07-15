@@ -8,7 +8,7 @@ const { encodeData, emergencyCall } = require('../helpers/utils');
 const { deployTestContractSetup } = require('../helpers/deploy');
 const { MARKET_NAMES } = require('../helpers/constants');
 
-describe('Emergency Call', async () => {
+describe.only('Emergency Call', async () => {
   // instantiate test vars
   let partyBid, nftContract, partyDAOMultisig, calldata, tokenOwner;
   const signers = provider.getWallets();
@@ -67,7 +67,7 @@ describe('Emergency Call', async () => {
     expect(tokenOwner).to.equal(partyBid.address);
   });
 
-  it('Multisig call does not revert', async () => {
+  it('Multisig call does not revert (NFT transfer call)', async () => {
     await expect(
       emergencyCall(partyBid, signers[0], nftContract.address, calldata),
     ).to.emit(nftContract, 'Transfer');
