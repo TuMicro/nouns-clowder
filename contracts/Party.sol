@@ -22,8 +22,6 @@ pragma solidity 0.8.9;
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {ERC721HolderUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/utils/ERC721HolderUpgradeable.sol";
 // ============ External Imports: External Contracts & Contract Interfaces ============
-import {IERC721VaultFactory} from "./external/interfaces/IERC721VaultFactory.sol";
-import {ITokenVault} from "./external/interfaces/ITokenVault.sol";
 import {IWETH} from "./external/interfaces/IWETH.sol";
 import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -52,21 +50,13 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
 
     // ============ Internal Constants ============
 
-    // tokens are minted at a rate of 1 ETH : 1000 tokens
-    uint16 internal constant TOKEN_SCALE = 1000;
     // PartyDAO receives an ETH fee equal to 2.5% of the amount spent
     uint16 internal constant ETH_FEE_BASIS_POINTS = 250;
-    // PartyDAO receives a token fee equal to 2.5% of the total token supply
-    uint16 internal constant TOKEN_FEE_BASIS_POINTS = 250;
-    // token is relisted on Fractional with an
-    // initial reserve price equal to 2x the price of the token
-    uint8 internal constant RESALE_MULTIPLIER = 2;
 
     // ============ Immutables ============
 
     address public immutable partyFactory;
     address public immutable partyDAOMultisig;
-    IERC721VaultFactory public immutable tokenVaultFactory;
     IWETH public immutable weth;
 
     // ============ Public Not-Mutated Storage ============
@@ -75,23 +65,12 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
     IERC721Metadata public nftContract;
     // ID of token within NFT contract
     uint256 public tokenId;
-    // Fractionalized NFT vault responsible for post-purchase experience
-    ITokenVault public tokenVault;
-    // the address that will receive a portion of the tokens
-    // if the Party successfully buys the token
-    address public splitRecipient;
-    // percent of the total token supply
-    // taken by the splitRecipient
-    uint256 public splitBasisPoints;
     // address of token that users need to hold to contribute
     // address(0) if party is not token gated
     IERC20 public gatedToken;
     // amount of token that users need to hold to contribute
     // 0 if party is not token gated
     uint256 public gatedTokenAmount;
-    // ERC-20 name and symbol for fractional tokens
-    string public name;
-    string public symbol;
 
     // ============ Public Mutable Storage ============
 
@@ -121,8 +100,7 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
     event Claimed(
         address indexed contributor,
         uint256 totalContributed,
-        uint256 excessContribution,
-        uint256 tokenAmount
+        uint256 excessContribution
     );
 
     // ======== Modifiers =========
@@ -139,12 +117,10 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
 
     constructor(
         address _partyDAOMultisig,
-        address _tokenVaultFactory,
         address _weth
     ) {
         partyFactory = msg.sender;
         partyDAOMultisig = _partyDAOMultisig;
-        tokenVaultFactory = IERC721VaultFactory(_tokenVaultFactory);
         weth = IWETH(_weth);
     }
 
@@ -152,26 +128,12 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
 
     function __Party_init(
         address _nftContract,
-        Structs.AddressAndAmount calldata _split,
-        Structs.AddressAndAmount calldata _tokenGate,
-        string memory _name,
-        string memory _symbol
+        Structs.AddressAndAmount calldata _tokenGate
     ) internal {
         require(
             msg.sender == partyFactory,
             "Party::__Party_init: only factory can init"
         );
-        // if split is non-zero,
-        if (_split.addr != address(0) && _split.amount != 0) {
-            // validate that party split won't retain the total token supply
-            uint256 _remainingBasisPoints = 10000 - TOKEN_FEE_BASIS_POINTS;
-            require(
-                _split.amount < _remainingBasisPoints,
-                "Party::__Party_init: basis points can't take 100%"
-            );
-            splitBasisPoints = _split.amount;
-            splitRecipient = _split.addr;
-        }
         // if token gating is non-zero
         if (_tokenGate.addr != address(0) && _tokenGate.amount != 0) {
             // call totalSupply to verify that address is ERC-20 token contract
@@ -184,8 +146,6 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
         __ERC721Holder_init();
         // set storage variables
         nftContract = IERC721Metadata(_nftContract);
-        name = _name;
-        symbol = _symbol;
     }
 
     // ======== Internal: Contribute =========
@@ -259,21 +219,16 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
         );
         // mark the contribution as claimed
         claimed[_contributor] = true;
-        // calculate the amount of fractional NFT tokens owed to the user
-        // based on how much ETH they contributed towards the party,
-        // and the amount of excess ETH owed to the user
-        (uint256 _tokenAmount, uint256 _ethAmount) = getClaimAmounts(
+        // calculate the amount of excess ETH owed to the user
+        (, uint256 _ethAmount) = getClaimAmounts(
             _contributor
         );
-        // transfer tokens to contributor for their portion of ETH used
-        _transferTokens(_contributor, _tokenAmount);
         // if there is excess ETH, send it back to the contributor
         _transferETHOrWETH(_contributor, _ethAmount);
         emit Claimed(
             _contributor,
             totalContributed[_contributor],
-            _ethAmount,
-            _tokenAmount
+            _ethAmount
         );
     }
 
@@ -315,17 +270,6 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
     // ======== Public: Utility Calculations =========
 
     /**
-     * @notice Convert ETH value to equivalent token amount
-     */
-    function valueToTokens(uint256 _value)
-        public
-        pure
-        returns (uint256 _tokens)
-    {
-        _tokens = _value * TOKEN_SCALE;
-    }
-
-    /**
      * @notice The maximum amount that can be spent by the Party
      * while paying the ETH fee to PartyDAO
      * @return _maxSpend the maximum spend
@@ -337,18 +281,18 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
     }
 
     /**
-     * @notice Calculate the amount of fractional NFT tokens owed to the contributor
+     * @notice Calculate the amount of ETH used (ownership of the contributor)
      * based on how much ETH they contributed towards buying the token,
      * and the amount of excess ETH owed to the contributor
      * based on how much ETH they contributed *not* used towards buying the token
      * @param _contributor the address of the contributor
-     * @return _tokenAmount the amount of fractional NFT tokens owed to the contributor
+     * @return _ethUsedOnPurchase the amount of ETH used from the contributor
      * @return _ethAmount the amount of excess ETH owed to the contributor
      */
     function getClaimAmounts(address _contributor)
         public
         view
-        returns (uint256 _tokenAmount, uint256 _ethAmount)
+        returns (uint256 _ethUsedOnPurchase, uint256 _ethAmount)
     {
         require(
             partyStatus != PartyStatus.ACTIVE,
@@ -358,12 +302,9 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
         if (partyStatus == PartyStatus.WON) {
             // calculate the amount of this contributor's ETH
             // that was used to buy the token
-            uint256 _totalEthUsed = totalEthUsed(_contributor);
-            if (_totalEthUsed > 0) {
-                _tokenAmount = valueToTokens(_totalEthUsed);
-            }
+            _ethUsedOnPurchase = totalEthUsed(_contributor);
             // the rest of the contributor's ETH should be returned
-            _ethAmount = _totalContributed - _totalEthUsed;
+            _ethAmount = _totalContributed - _ethUsedOnPurchase;
         } else {
             // if the token wasn't bought, no ETH was spent;
             // all of the contributor's ETH should be returned
@@ -414,9 +355,7 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
         totalSpent = _nftCost + _ethFee;
         // transfer ETH fee to PartyDAO
         _transferETHOrWETH(partyDAOMultisig, _ethFee);
-        // deploy fractionalized NFT vault
-        // and mint fractional ERC-20 tokens
-        _fractionalizeNFT(_nftCost);
+        // TODO: maybe store the NFT cost in the contract?
     }
 
     /**
@@ -428,36 +367,6 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
      */
     function _getEthFee(uint256 _amount) internal pure returns (uint256 _fee) {
         _fee = (_amount * ETH_FEE_BASIS_POINTS) / 10000;
-    }
-
-    /**
-     * @notice Calculate token amount for specified token recipient
-     * @return _totalSupply the total token supply
-     * @return _partyDAOAmount the amount of tokens for partyDAO fee,
-     * which is equivalent to TOKEN_FEE_BASIS_POINTS of total supply
-     * @return _splitRecipientAmount the amount of tokens for the token recipient,
-     * which is equivalent to splitBasisPoints of total supply
-     */
-    function _getTokenInflationAmounts(uint256 _amountSpent)
-        internal
-        view
-        returns (
-            uint256 _totalSupply,
-            uint256 _partyDAOAmount,
-            uint256 _splitRecipientAmount
-        )
-    {
-        // the token supply will be inflated to provide a portion of the
-        // total supply for PartyDAO, and a portion for the splitRecipient
-        uint256 inflationBasisPoints = TOKEN_FEE_BASIS_POINTS +
-            splitBasisPoints;
-        _totalSupply = valueToTokens(
-            (_amountSpent * 10000) / (10000 - inflationBasisPoints)
-        );
-        // PartyDAO receives TOKEN_FEE_BASIS_POINTS of the total supply
-        _partyDAOAmount = (_totalSupply * TOKEN_FEE_BASIS_POINTS) / 10000;
-        // splitRecipient receives splitBasisPoints of the total supply
-        _splitRecipientAmount = (_totalSupply * splitBasisPoints) / 10000;
     }
 
     /**
@@ -474,46 +383,6 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
             .staticcall(abi.encodeWithSignature("ownerOf(uint256)", tokenId));
         if (_success && _returnData.length > 0) {
             _owner = abi.decode(_returnData, (address));
-        }
-    }
-
-    /**
-     * @notice Upon winning the token, transfer the NFT
-     * to fractional.art vault & mint fractional ERC-20 tokens
-     */
-    function _fractionalizeNFT(uint256 _amountSpent) internal {
-        // approve fractionalized NFT Factory to withdraw NFT
-        nftContract.approve(address(tokenVaultFactory), tokenId);
-        // Party "votes" for a reserve price on Fractional
-        // equal to 2x the price of the token
-        uint256 _listPrice = RESALE_MULTIPLIER * _amountSpent;
-        // users receive tokens at a rate of 1:TOKEN_SCALE for each ETH they contributed that was ultimately spent
-        // partyDAO receives a percentage of the total token supply equivalent to TOKEN_FEE_BASIS_POINTS
-        // splitRecipient receives a percentage of the total token supply equivalent to splitBasisPoints
-        (
-            uint256 _tokenSupply,
-            uint256 _partyDAOAmount,
-            uint256 _splitRecipientAmount
-        ) = _getTokenInflationAmounts(totalSpent);
-        // deploy fractionalized NFT vault
-        uint256 vaultNumber = tokenVaultFactory.mint(
-            name,
-            symbol,
-            address(nftContract),
-            tokenId,
-            _tokenSupply,
-            _listPrice,
-            0
-        );
-        // store token vault address to storage
-        tokenVault = ITokenVault(tokenVaultFactory.vaults(vaultNumber));
-        // transfer curator to null address (burn the curator role)
-        tokenVault.updateCurator(address(0));
-        // transfer tokens to PartyDAO multisig
-        _transferTokens(partyDAOMultisig, _partyDAOAmount);
-        // transfer tokens to token recipient
-        if (splitRecipient != address(0)) {
-            _transferTokens(splitRecipient, _splitRecipientAmount);
         }
     }
 
@@ -546,28 +415,6 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
         }
         // contribution was not used
         return 0;
-    }
-
-    // ============ Internal: TransferTokens ============
-
-    /**
-     * @notice Transfer tokens to a recipient
-     * @param _to recipient of tokens
-     * @param _value amount of tokens
-     */
-    function _transferTokens(address _to, uint256 _value) internal {
-        // skip if attempting to send 0 tokens
-        if (_value == 0) {
-            return;
-        }
-        // guard against rounding errors;
-        // if token amount to send is greater than contract balance,
-        // send full contract balance
-        uint256 _partyBalance = tokenVault.balanceOf(address(this));
-        if (_value > _partyBalance) {
-            _value = _partyBalance;
-        }
-        tokenVault.transfer(_to, _value);
     }
 
     // ============ Internal: TransferEthOrWeth ============

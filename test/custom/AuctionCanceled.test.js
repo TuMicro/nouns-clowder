@@ -11,7 +11,7 @@ const { deployTestContractSetup } = require('../helpers/deploy');
 const { MARKETS, MARKET_NAMES, PARTY_STATUS } = require('../helpers/constants');
 const { testCases } = require('../partybid/partyBidTestCases.json');
 
-describe('Auction Canceled', async () => {
+describe.only('Auction Canceled', async () => {
   // Noun auctions cannot be cancelled
   MARKETS.filter(
     (m) => m !== MARKET_NAMES.NOUNS && m !== MARKET_NAMES.KOANS,
@@ -133,7 +133,6 @@ describe('Auction Canceled', async () => {
                   contributor.address,
                   eth(totalContributed),
                   eth(totalContributed),
-                  eth(0),
                 );
 
               const partyBidBalanceAfterRaw = await provider.getBalance(

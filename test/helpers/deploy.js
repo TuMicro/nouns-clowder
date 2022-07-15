@@ -237,15 +237,9 @@ async function deployTestContractSetup(
     partyDAOMultisig = artistSigner;
   }
 
-  const tokenVaultSettings = await deploy('Settings');
-  const tokenVaultFactory = await deploy('ERC721VaultFactory', [
-    tokenVaultSettings.address,
-  ]);
-
   // Deploy PartyBid Factory (including PartyBid Logic + Reseller Whitelist)
   const factory = await deploy('PartyBidFactory', [
     partyDAOMultisig.address,
-    tokenVaultFactory.address,
     weth.address,
   ]);
 
@@ -255,10 +249,7 @@ async function deployTestContractSetup(
     nftContract.address,
     tokenId,
     auctionId,
-    [splitRecipient, splitBasisPoints],
     [gatedToken, gatedTokenAmount],
-    'Parrrrti',
-    'PRTI',
     1000, // allow expiration 1000 seconds from now
   );
 

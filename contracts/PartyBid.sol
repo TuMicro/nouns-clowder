@@ -82,9 +82,8 @@ contract PartyBid is Party {
 
     constructor(
         address _partyDAOMultisig,
-        address _tokenVaultFactory,
         address _weth
-    ) Party(_partyDAOMultisig, _tokenVaultFactory, _weth) {}
+    ) Party(_partyDAOMultisig, _weth) {}
 
     // ======== Initializer =========
 
@@ -93,10 +92,7 @@ contract PartyBid is Party {
         address _nftContract,
         uint256 _tokenId,
         uint256 _auctionId,
-        Structs.AddressAndAmount calldata _split,
         Structs.AddressAndAmount calldata _tokenGate,
-        string memory _name,
-        string memory _symbol,
         uint256 _durationInSeconds
     ) external initializer {
         // validate auction exists
@@ -109,7 +105,7 @@ contract PartyBid is Party {
             "PartyBid::initialize: auctionId doesn't match token"
         );
         // initialize & validate shared Party variables
-        __Party_init(_nftContract, _split, _tokenGate, _name, _symbol);
+        __Party_init(_nftContract, _tokenGate);
         // verify token exists
         tokenId = _tokenId;
         require(
@@ -211,8 +207,6 @@ contract PartyBid is Party {
         if (partyStatus == PartyStatus.WON) {
             // record totalSpent,
             // send ETH fees to PartyDAO,
-            // fractionalize the Token
-            // send Token fees to PartyDAO & split proceeds to split recipient
             _ethFee = _closeSuccessfulParty(highestBid);
         }
         // set the contract status & emit result

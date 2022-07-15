@@ -24,12 +24,8 @@ contract PartyBidFactory {
         uint256 tokenId,
         address marketWrapper,
         uint256 auctionId,
-        address splitRecipient,
-        uint256 splitBasisPoints,
         address gatedToken,
         uint256 gatedTokenAmount,
-        string name,
-        string symbol,
         uint256 durationInSeconds
     );
 
@@ -37,7 +33,6 @@ contract PartyBidFactory {
 
     address public immutable logic;
     address public immutable partyDAOMultisig;
-    address public immutable tokenVaultFactory;
     address public immutable weth;
 
     //======== Mutable storage =========
@@ -49,16 +44,13 @@ contract PartyBidFactory {
 
     constructor(
         address _partyDAOMultisig,
-        address _tokenVaultFactory,
         address _weth
     ) {
         partyDAOMultisig = _partyDAOMultisig;
-        tokenVaultFactory = _tokenVaultFactory;
         weth = _weth;
         // deploy logic contract
         PartyBid _logicContract = new PartyBid(
             _partyDAOMultisig,
-            _tokenVaultFactory,
             _weth
         );
         // store logic contract address
@@ -72,10 +64,7 @@ contract PartyBidFactory {
         address _nftContract,
         uint256 _tokenId,
         uint256 _auctionId,
-        Structs.AddressAndAmount calldata _split,
         Structs.AddressAndAmount calldata _tokenGate,
-        string memory _name,
-        string memory _symbol,
         uint256 _durationInSeconds
     ) external returns (address partyBidProxy) {
         bytes memory _initializationCalldata = abi.encodeWithSelector(
@@ -84,10 +73,7 @@ contract PartyBidFactory {
             _nftContract,
             _tokenId,
             _auctionId,
-            _split,
             _tokenGate,
-            _name,
-            _symbol,
             _durationInSeconds
         );
 
@@ -104,12 +90,8 @@ contract PartyBidFactory {
             _tokenId,
             _marketWrapper,
             _auctionId,
-            _split.addr,
-            _split.amount,
             _tokenGate.addr,
             _tokenGate.amount,
-            _name,
-            _symbol,
             _durationInSeconds
         );
     }
