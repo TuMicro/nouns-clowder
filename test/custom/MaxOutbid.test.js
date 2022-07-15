@@ -40,7 +40,7 @@ const testCases = [
   },
 ];
 
-describe('Maximum Outbid', async () => {
+describe.only('Maximum Outbid', async () => {
   MARKETS.map((marketName) => {
     describe(marketName, async () => {
       testCases.map((testCase, i) => {
@@ -105,7 +105,7 @@ describe('Maximum Outbid', async () => {
   });
 });
 
-describe('Failed Maximum Outbid', async () => {
+describe.only('Failed Maximum Outbid', async () => {
   MARKETS.map((marketName) => {
     describe(marketName, async () => {
       testCases.map((testCase, i) => {

@@ -171,7 +171,6 @@ describe('Emergency Force Lost', async () => {
                   contributor.address,
                   eth(totalContributed),
                   eth(excessEth),
-                  eth(tokens),
                 );
 
               const after = await getBalances(provider, token, accounts);

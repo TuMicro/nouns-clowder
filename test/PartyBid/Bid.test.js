@@ -10,7 +10,7 @@ const { deployTestContractSetup } = require('../helpers/deploy');
 const { MARKETS, MARKET_NAMES } = require('../helpers/constants');
 const { testCases } = require('./partyBidTestCases.json');
 
-describe('Bid', async () => {
+describe.only('Bid', async () => {
   MARKETS.map((marketName) => {
     describe(marketName, async () => {
       testCases.map((testCase, i) => {

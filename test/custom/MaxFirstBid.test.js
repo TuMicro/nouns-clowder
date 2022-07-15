@@ -25,7 +25,7 @@ const testCases = [
   },
 ];
 
-describe('Maximum First Bid', async () => {
+describe.only('Maximum First Bid', async () => {
   MARKETS.map((marketName) => {
     describe(marketName, async () => {
       testCases.map((testCase, i) => {

@@ -25,7 +25,7 @@ const {
 } = require('../helpers/constants');
 const { testCases } = require('./partyBidTestCases.json');
 
-describe('Finalize', async () => {
+describe.only('Finalize', async () => {
   MARKETS.map((marketName) => {
     describe(marketName, async () => {
       testCases.map((testCase, i) => {
@@ -149,8 +149,6 @@ describe('Finalize', async () => {
 
             // finalize auction
             await expect(partyBid.finalize()).to.emit(partyBid, 'Finalized');
-
-            token = await getTokenVault(partyBid, signers[0]);
           });
 
           it(`Doesn't accept contributions after Finalize`, async () => {
@@ -171,67 +169,10 @@ describe('Finalize', async () => {
               expect(partyStatus).to.equal(PARTY_STATUS.WON);
             });
 
-            it(`Fractional Token Vault Owns the NFT`, async () => {
-              const vaultAddress = await partyBid.tokenVault();
-              const owner = await nftContract.ownerOf(tokenId);
-              expect(owner).to.equal(vaultAddress);
-            });
-
-            it(`Fractional Token Vault has correct reserve price`, async () => {
-              const vaultAddress = await partyBid.tokenVault();
-              const Fractional = await ethers.getContractFactory('TokenVault');
-              const fractionalVault = new ethers.Contract(
-                vaultAddress,
-                Fractional.interface,
-                signers[0],
-              );
-              const reservePrice = await fractionalVault.reservePrice();
-              expect(weiToEth(reservePrice)).to.equal(
-                finBid.times(RESALE_MULTIPLIER).toNumber(),
-              );
-            });
-
             it('Has correct totalSpent', async () => {
               const totalSpent = await partyBid.totalSpent();
               expect(weiToEth(totalSpent)).to.equal(
                 expectedTotalSpent.toNumber(),
-              );
-            });
-
-            it('Has correct balance of tokens in PartyBid', async () => {
-              const expectedPartyBidBalance =
-                expectedTotalSpent.times(TOKEN_SCALE);
-              const partyBidTokenBalance = await token.balanceOf(
-                partyBid.address,
-              );
-              expect(weiToEth(partyBidTokenBalance)).to.equal(
-                expectedPartyBidBalance.toNumber(),
-              );
-            });
-
-            it('Transferred token fee to PartyDAO multisig', async () => {
-              const totalSupply = await token.totalSupply();
-              const expectedMultisigBalance = tokenFeeFactor.times(
-                weiToEth(totalSupply),
-              );
-              const multisigBalance = await token.balanceOf(
-                partyDAOMultisig.address,
-              );
-              expect(weiToEth(multisigBalance)).to.equal(
-                expectedMultisigBalance.toNumber(),
-              );
-            });
-
-            it('Transferred tokens to splitRecipient', async () => {
-              const totalSupply = await token.totalSupply();
-              const expectedsplitRecipientBalance = splitRecipientFactor.times(
-                weiToEth(totalSupply),
-              );
-              const splitRecipientBalance = await token.balanceOf(
-                splitRecipient,
-              );
-              expect(weiToEth(splitRecipientBalance)).to.equal(
-                expectedsplitRecipientBalance.toNumber(),
               );
             });
 

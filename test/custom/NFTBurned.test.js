@@ -135,7 +135,6 @@ describe('NFT Burned', async () => {
             contributor.address,
             eth(totalContributed),
             eth(totalContributed),
-            eth(0),
           );
 
         const after = await getBalances(provider, token, accounts);

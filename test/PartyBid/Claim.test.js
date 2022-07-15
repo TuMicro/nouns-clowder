@@ -20,7 +20,7 @@ const {
 } = require('../helpers/constants');
 const { testCases } = require('./partyBidTestCases.json');
 
-describe('Claim', async () => {
+describe.only('Claim', async () => {
   MARKETS.map((marketName) => {
     describe(marketName, async () => {
       testCases.map((testCase, i) => {
@@ -96,16 +96,18 @@ describe('Claim', async () => {
 
             // finalize auction
             await expect(partyBid.finalize()).to.emit(partyBid, 'Finalized');
-            token = await getTokenVault(partyBid, firstSigner);
           });
 
           for (let claim of claims[marketName]) {
             const { signerIndex, tokens, excessEth, totalContributed } = claim;
+            const expectedEthUsed = new BigNumber(totalContributed).minus(
+              excessEth,
+            );
             const contributor = signers[signerIndex];
             it('Gives the correct values for getClaimAmounts before claim is called', async () => {
-              const [tokenClaimAmount, ethClaimAmount] =
+              const [ethUsedInPurchase, ethClaimAmount] =
                 await partyBid.getClaimAmounts(contributor.address);
-              expect(weiToEth(tokenClaimAmount)).to.equal(tokens);
+              expect(weiToEth(ethUsedInPurchase)).to.equal(expectedEthUsed.toNumber());
               expect(weiToEth(ethClaimAmount)).to.equal(excessEth);
             });
 
@@ -145,7 +147,6 @@ describe('Claim', async () => {
                   contributor.address,
                   eth(totalContributed),
                   eth(excessEth),
-                  eth(tokens),
                 );
 
               const after = await getBalances(provider, token, accounts);
@@ -154,20 +155,16 @@ describe('Claim', async () => {
               await expect(after.partyBid.eth.toNumber()).to.equal(
                 before.partyBid.eth.minus(excessEth).toNumber(),
               );
-
-              // Tokens were transferred from PartyBid to contributor
-              await expect(after.partyBid.tokens.toNumber()).to.equal(
-                before.partyBid.tokens.minus(tokens).toNumber(),
-              );
-              await expect(after.contributor.tokens.toNumber()).to.equal(
-                before.contributor.tokens.plus(tokens).toNumber(),
-              );
+              // TODO: take gas into account:
+              // await expect(after.contributor.eth.toNumber()).to.equal(
+              //   before.contributor.eth.plus(excessEth).toNumber(),
+              // );
             });
 
             it('Gives the same values for getClaimAmounts after claim is called', async () => {
-              const [tokenClaimAmount, ethClaimAmount] =
+              const [ethUsedInPurchase, ethClaimAmount] =
                 await partyBid.getClaimAmounts(contributor.address);
-              expect(weiToEth(tokenClaimAmount)).to.equal(tokens);
+              expect(weiToEth(ethUsedInPurchase)).to.equal(expectedEthUsed.toNumber());
               expect(weiToEth(ethClaimAmount)).to.equal(excessEth);
             });
 
@@ -190,9 +187,9 @@ describe('Claim', async () => {
 
           it('Gives zero for getClaimAmounts for non-contributor', async () => {
             const randomAddress = '0xD115BFFAbbdd893A6f7ceA402e7338643Ced44a6';
-            const [tokenClaimAmount, ethClaimAmount] =
+            const [ethUsedInPurchase, ethClaimAmount] =
               await partyBid.getClaimAmounts(randomAddress);
-            expect(tokenClaimAmount).to.equal(0);
+            expect(ethUsedInPurchase).to.equal(0);
             expect(ethClaimAmount).to.equal(0);
           });
 

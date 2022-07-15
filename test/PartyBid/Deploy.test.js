@@ -8,7 +8,7 @@ const { eth } = require('../helpers/utils');
 const { deployTestContractSetup } = require('../helpers/deploy');
 const { MARKETS, PARTY_STATUS } = require('../helpers/constants');
 
-describe('Deploy', async () => {
+describe.only('Deploy', async () => {
   MARKETS.map((marketName) => {
     describe(marketName, async () => {
       const splitRecipient = '0x0000000000000000000000000000000000000000';
@@ -63,10 +63,8 @@ describe('Deploy', async () => {
             nftContract.address,
             tokenId,
             auctionId,
-            [splitRecipient, splitBasisPoints],
             ['0x0000000000000000000000000000000000000000', 0],
-            'PartyBid Logic',
-            'LOGIC',
+            0,
           ),
         ).to.be.revertedWith('Party::__Party_init: only factory can init');
       });
@@ -78,10 +76,8 @@ describe('Deploy', async () => {
             nftContract.address,
             tokenId,
             auctionId,
-            [splitRecipient, splitBasisPoints],
             ['0x0000000000000000000000000000000000000000', 0],
-            'PartyBid',
-            'PARTYYYY',
+            0,
           ),
         ).to.be.revertedWith('Initializable: contract is already initialized');
       });
@@ -127,16 +123,6 @@ describe('Deploy', async () => {
       it('Market Wrapper is correct', async () => {
         const wrapper = await partyBid.marketWrapper();
         expect(wrapper).to.equal(marketWrapper.address);
-      });
-
-      it('Name is Parrrrti', async () => {
-        const name = await partyBid.name();
-        expect(name).to.equal('Parrrrti');
-      });
-
-      it('Symbol is PRTI', async () => {
-        const symbol = await partyBid.symbol();
-        expect(symbol).to.equal('PRTI');
       });
     });
   });

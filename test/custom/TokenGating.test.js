@@ -198,19 +198,20 @@ describe('TokenGating', async () => {
 
               // finalize auction
               await expect(partyBid.finalize()).to.emit(partyBid, 'Finalized');
-
-              tokenVault = await getTokenVault(partyBid, signers[0]);
             });
 
             // has proper claim amounts
             for (let claim of claims[marketName]) {
               const { signerIndex, tokens, excessEth, totalContributed } =
                 claim;
+              const expectedEthUsed = new BigNumber(totalContributed).minus(
+                excessEth,
+              );
               const contributor = signers[signerIndex];
               it('Gives the correct values for getClaimAmounts before claim is called', async () => {
-                const [tokenClaimAmount, ethClaimAmount] =
+                const [ethUsedInPurchase, ethClaimAmount] =
                   await partyBid.getClaimAmounts(contributor.address);
-                expect(weiToEth(tokenClaimAmount)).to.equal(tokens);
+                expect(weiToEth(ethUsedInPurchase)).to.equal(expectedEthUsed.toNumber());
                 expect(weiToEth(ethClaimAmount)).to.equal(excessEth);
               });
 
@@ -218,9 +219,7 @@ describe('TokenGating', async () => {
                 const totalEthUsed = await partyBid.totalEthUsed(
                   contributor.address,
                 );
-                const expectedEthUsed = new BigNumber(totalContributed).minus(
-                  excessEth,
-                );
+
                 expect(weiToEth(totalEthUsed)).to.equal(
                   expectedEthUsed.toNumber(),
                 );
@@ -254,7 +253,6 @@ describe('TokenGating', async () => {
                     contributor.address,
                     eth(totalContributed),
                     eth(excessEth),
-                    eth(tokens),
                   );
 
                 const after = await getBalances(provider, tokenVault, accounts);
@@ -263,20 +261,12 @@ describe('TokenGating', async () => {
                 await expect(after.partyBid.eth.toNumber()).to.equal(
                   before.partyBid.eth.minus(excessEth).toNumber(),
                 );
-
-                // Tokens were transferred from Party to contributor
-                await expect(after.partyBid.tokens.toNumber()).to.equal(
-                  before.partyBid.tokens.minus(tokens).toNumber(),
-                );
-                await expect(after.contributor.tokens.toNumber()).to.equal(
-                  before.contributor.tokens.plus(tokens).toNumber(),
-                );
               });
 
               it('Gives the same values for getClaimAmounts after claim is called', async () => {
-                const [tokenClaimAmount, ethClaimAmount] =
+                const [ethUsedInPurchase, ethClaimAmount] =
                   await partyBid.getClaimAmounts(contributor.address);
-                expect(weiToEth(tokenClaimAmount)).to.equal(tokens);
+                expect(weiToEth(ethUsedInPurchase)).to.equal(expectedEthUsed.toNumber());
                 expect(weiToEth(ethClaimAmount)).to.equal(excessEth);
               });
 

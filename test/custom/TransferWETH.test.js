@@ -128,7 +128,6 @@ describe('Transfer WETH', async () => {
             nonPayable.address,
             eth(contributionAmount),
             eth(contributionAmount),
-            eth(0),
           );
       });
 
