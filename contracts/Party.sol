@@ -87,6 +87,8 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
     mapping(address => uint256) public totalContributed;
     // contributor => true if contribution has been claimed
     mapping(address => bool) public claimed;
+    // post-auction manager contract
+    address public handler;
 
     // ============ Events ============
 
@@ -109,6 +111,14 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
         require(
             msg.sender == partyDAOMultisig,
             "Party:: only PartyDAO multisig"
+        );
+        _;
+    }
+
+    modifier onlyHandler() {
+        require(
+            msg.sender == handler,
+            "Party:: only Handler"
         );
         _;
     }
@@ -230,6 +240,28 @@ contract Party is ReentrancyGuardUpgradeable, ERC721HolderUpgradeable {
             totalContributed[_contributor],
             _ethAmount
         );
+    }
+
+    // ======== External: Handler actions (Handler Only) ========
+
+    /**
+     * @notice Transfer the NFT
+     * The caller is responsible to confirm that `_to` is
+     * capable of receiving the NFT, otherwise the NFT may be
+     * permanently lost.
+     */
+    function moveNft(address _to) external onlyHandler {
+        nftContract.transferFrom(address(this), _to, tokenId);
+    }
+
+    // ======== External: Setting the handler (PartyDAO Multisig Only) ========
+
+    /**
+     * @notice Set the handler contract for the party
+     * PartyDAO can set the handler for the post-auction experience
+     */
+    function setHandler(address _handler) external onlyPartyDAO {
+        handler = _handler;
     }
 
     // ======== External: Emergency Escape Hatches (PartyDAO Multisig Only) =========
