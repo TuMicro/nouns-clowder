@@ -5,6 +5,7 @@
   "main": "",
   "scripts": {
     "test": "npm run compile && hardhat test",
+    "testBid": "npm run compile && hardhat test test/PartyBid/Bid.test.js",
     "deploy:bid": "npm run compile && node ./deploy/partybid/index.js && npm run verify:bid",
     "deploy:buy": "npm run compile && node ./deploy/partybuy/index.js && npm run verify:buy",
     "deploy:collection": "npm run compile && node ./deploy/collection-party/index.js && npm run verify:collection",

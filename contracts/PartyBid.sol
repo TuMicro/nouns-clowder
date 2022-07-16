@@ -138,7 +138,7 @@ contract PartyBid is Party {
      * Emits a Bid event upon success.
      * Callable by any contributor
      */
-    function bid() external nonReentrant {
+    function bid(uint256 _bid) external nonReentrant {
         require(
             partyStatus == PartyStatus.ACTIVE,
             "PartyBid::bid: auction not active"
@@ -155,8 +155,11 @@ contract PartyBid is Party {
             !marketWrapper.isFinalized(auctionId),
             "PartyBid::bid: auction already finalized"
         );
-        // get the minimum next bid for the auction
-        uint256 _bid = marketWrapper.getMinimumBid(auctionId);
+        // ensure bid is greater than or equal the minimum next bid for the auction
+        require(
+            _bid >= marketWrapper.getMinimumBid(auctionId),
+            "PartyBid::bid: can't bid below minimum"
+        );
         // ensure there is enough ETH to place the bid including PartyDAO fee
         require(
             _bid <= getMaximumBid(),

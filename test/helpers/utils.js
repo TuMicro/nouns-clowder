@@ -109,8 +109,19 @@ function initExpectedTotalContributed(signers) {
   return expectedTotalContributed;
 }
 
-async function bidThroughParty(partyBidContract, signer) {
-  const data = encodeData(partyBidContract, 'bid');
+async function bidThroughParty(partyBidContract, signer, bidAmount) {
+  if (bidAmount == null) { // we get the min bid
+    const wrapper = await partyBidContract.marketWrapper();
+    // only nouns for now
+    const IMarketWrapper = await ethers.getContractFactory('NounsMarketWrapper');
+    const wrapperContract = new ethers.Contract(wrapper, IMarketWrapper.interface, signer);
+    const auctionId = await partyBidContract.auctionId();
+    bidAmount = await wrapperContract.getMinimumBid(auctionId);
+  } else {
+    bidAmount = eth(bidAmount);
+  }
+
+  const data = encodeData(partyBidContract, 'bid', [bidAmount]);
 
   return signer.sendTransaction({
     to: partyBidContract.address,
