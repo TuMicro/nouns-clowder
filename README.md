@@ -1,3 +1,9 @@
+#### Nouns Clowder modifications on PartyBid:
+
+* Removed fractionalization and non nouns-markets.
+* Allowing bidding any amount greater than or equal the minimum bid amount.
+
+
 ## PartyBid
 
 PartyBid is a protocol that allows a group of internet homies to pool their funds together in order to win an NFT auction.
