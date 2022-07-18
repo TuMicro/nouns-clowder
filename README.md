@@ -2,7 +2,7 @@
 
 * Removed fractionalization and non nouns-markets.
 * Allowing bidding any amount greater than or equal the minimum bid amount.
-
+* Some tests were added and some were changed, currently only the bid tests are passing: `npm run testBid`. It is a pending task to adapt the rest of the tests.
 
 ## PartyBid
 
